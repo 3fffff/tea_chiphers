@@ -6,7 +6,7 @@ class Tea {
    * @param   {string} password - Password to be used for encryption (1st 16 chars).
    * @returns {string} Encrypted text (encoded as base64).
    */
-  static encrypt(plaintext, password, keyLength = 16) {
+  static encrypt(plaintext, password, keyLength = 32) {
     const pow2 = Math.log2(keyLength)
     if (pow2 != ~~pow2) throw Error("keyLength must be power of 2");
     plaintext = String(plaintext);
@@ -20,7 +20,7 @@ class Tea {
     //  k is 4-word key; simply convert first 16 chars of password as key
     const k = Tea.strToUint32(Tea.utf8Encode(password).slice(0, keyLength));
     console.log(k)
-    const cipher = Tea.encodeRaiden(v, k);
+    const cipher = Tea.encodeRTEA(v, k);
 
     // convert array of longs to string
     const ciphertext = Tea.longsToStr(cipher);
@@ -40,7 +40,7 @@ class Tea {
    * @returns {string} Decrypted text.
    * @throws  {Error}  Invalid ciphertext
    */
-  static decrypt(ciphertext, password, keyLength = 16) {
+  static decrypt(ciphertext, password, keyLength = 32) {
     const pow2 = Math.log2(keyLength)
     if (pow2 != ~~pow2) throw Error("keyLength must be power of 2");
     ciphertext = String(ciphertext);
@@ -53,7 +53,7 @@ class Tea {
     //  k is 4-word key; simply convert first 16 chars of password as key
     const k = Tea.strToUint32(Tea.utf8Encode(password).slice(0, keyLength));
 
-    const plain = Tea.decodeRaiden(v, k);
+    const plain = Tea.decodeRTEA(v, k);
 
     const plaintext = Tea.longsToStr(plain);
 
@@ -121,33 +121,35 @@ class Tea {
     return v;
   }
 
-  /*static encodeRTEA(v, k) {
-    const kw = k.length
-    for (let i = 0; i < v.length; i++) {
-      let a = v[i] & 0x0000FFFF, b = (v[i] >> 16) & 0x0000FFFF;
-      for (let r = 0; r < kw * 4 + 32; r++) {
+  static encodeRTEA(v, k) {
+    for (let i = 0; i < v.length; i += 2) {
+      let a = v[i], b = v[i + 1];
+      for (let r = 0; r < k.length * 4 + 32; r++) {
+        b &= 0xFFFFFFFF;//overflow prevention
         const c = b;
-        b += a + ((b << 6) ^ (b >> 8)) + k[r % kw] + r;
+        b += a + ((b << 6) ^ (b >> 8)) + k[r % k.length] + r;
         a = c;
       }
-      v[i] = (((b >> 16) & 0xFFFF) << 16) | (a & 0xFFFF);
+      v[i] = a
+      v[i + 1] = b
     }
     return v
   }
 
   static decodeRTEA(v, k) {
-    const kw = k.length
-    for (let i = 0; i < v.length; i++) {
-      let a = v[i] & 0xFFFF, b = (v[i] >> 16) & 0xFFFF;
-      for (let r = kw * 4 + 31; r >= 0; r--) {
+    for (let i = 0; i < v.length; i += 2) {
+      let a = v[i], b = v[i + 1];
+      for (let r = k.length * 4 + 31; r >= 0; r--) {
+        a &= 0xFFFFFFFF;//overflow prevention
         const c = a;
-        a = b -= a + ((a << 6) ^ (a >> 8)) + k[r % kw] + r;
+        a = b -= a + ((a << 6) ^ (a >> 8)) + k[r % k.length] + r;
         b = c;
       }
-      v[i] = (((b >> 16) & 0xFFFF) << 16) | (a & 0xFFFF);
+      v[i] = a
+      v[i + 1] = b
     }
     return v
-  }*/
+  }
 
   static encodeRaiden(v, k) {
     const key = [k[0], k[1], k[2], k[3]]
