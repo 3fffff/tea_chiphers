@@ -19,6 +19,10 @@ class Tea {
 
     //  k is 4-word key; simply convert first 16 chars of password as key
     const k = Tea.strToUint32(Tea.utf8Encode(password).slice(0, keyLength));
+    const k64 = Tea.strToUint64(Tea.utf8Encode(password).slice(0, keyLength))
+    const d64 = Tea.uint64ToStr(k64)
+    console.log(k64)
+    console.log(d64)
     console.log(k)
     const cipher = Tea.encodeRTEA(v, k);
 
@@ -180,8 +184,18 @@ class Tea {
     }
     return v
   }
+
+  static encryptSPECK(v, k) {
+    let x = v[0], y = v[1];
+    for (let i = 0; i < 22; i++) {
+      x = (x << 9 | x >>> 7) + y & 65535 ^ k[i];
+      y = (y << 2 | y >>> 14) & 65535 ^ x;
+    }
+    v[0] = x, v[1] = y;
+    return v;
+  }
   /**
-   * Converts string to array of longs (each containing 4 chars).
+   * Converts string to array of uint32 (each containing 4 chars).
    * @private
    */
   static strToUint32(s) {
@@ -195,6 +209,28 @@ class Tea {
     return l;
   }
 
+  /**
+ * Converts string to array of uint64 (each containing 8 chars).
+ * @private
+ */
+  static strToUint64(s) {
+    // note chars must be within ISO-8859-1 (Unicode code-point <= U+00FF) to fit 2/long
+    const l = new BigUint64Array(Math.ceil(s.length / 8));
+    const u8 = new Uint8Array(8)
+    for (let i = 0; i < l.length; i++) {
+      // note little-endian encoding - endianness is irrelevant as long as it matches longsToStr()
+      u8[0] = s.charCodeAt(i * 8)
+      u8[0] =s.charCodeAt(i * 8 + 1) << 8
+      u8[0] =s.charCodeAt(i * 8 + 2) << 16
+      u8[0] =s.charCodeAt(i * 8 + 3) << 24
+      u8[0] =s.charCodeAt(i * 8 + 4) << 32
+      u8[0] =s.charCodeAt(i * 8 + 5) << 40
+      u8[0] =s.charCodeAt(i * 8 + 6) << 48
+      u8[0] =s.charCodeAt(i * 8 + 7) << 56
+      l[i] = BigInt('0x'+u8.join(""));
+    } // note running off the end of the string generates nulls since bitwise operators treat NaN as 0
+    return l;
+  }
 
   /**
    * Converts array of longs to string.
@@ -208,6 +244,23 @@ class Tea {
     return str;
   }
 
+
+  static uint64ToStr(l) {
+    let str = '';
+    for (let i = 0; i < l.length; i++) {
+      //str += String.fromCharCode(l[i] & 0xff, l[i] >>> 8 & 0xff, l[i] >>> 16 & 0xff, l[i] >>> 24 & 0xff,
+      //  l[i] >>> 32 & 0xff, l[i] >>> 40 & 0xff, l[i] >>> 48 & 0xff, l[i] >>> 56 & 0xff);
+      const hex = BigInt(l[i]).toString(16);
+      const len = hex.length / 2
+      let j = 0, k = 0
+      while (j < len) {
+        str += parseInt(hex.slice(k, k + 2, 16))
+        j += 1;
+        k += 2;
+      }
+    }
+    return str;
+  }
   /**
    * Encodes multi-byte string to utf8 - monsur.hossa.in/2012/07/20/utf-8-in-javascript.html
    */
