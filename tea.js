@@ -27,7 +27,7 @@ class Tea {
     const cipher = Tea.encodeRTEA(v, k);
 
     // convert array of longs to string
-    const ciphertext = Tea.longsToStr(cipher);
+    const ciphertext = Tea.uint32ToStr(cipher);
 
     // convert binary string to base64 ascii for safe transport
     const cipherbase64 = Tea.base64Encode(ciphertext);
@@ -59,7 +59,7 @@ class Tea {
 
     const plain = Tea.decodeRTEA(v, k);
 
-    const plaintext = Tea.longsToStr(plain);
+    const plaintext = Tea.uint32ToStr(plain);
 
     // strip trailing null chars resulting from filling 4-char blocks:
     const plainUnicode = Tea.utf8Decode(plaintext.replace(/\0+$/, ''));
@@ -202,7 +202,7 @@ class Tea {
     // note chars must be within ISO-8859-1 (Unicode code-point <= U+00FF) to fit 4/long
     const l = new Uint32Array(Math.ceil(s.length / 4));
     for (let i = 0; i < l.length; i++) {
-      // note little-endian encoding - endianness is irrelevant as long as it matches longsToStr()
+      // note little-endian encoding - endianness is irrelevant as long as it matches uint32ToStr()
       l[i] = s.charCodeAt(i * 4) + (s.charCodeAt(i * 4 + 1) << 8) +
         (s.charCodeAt(i * 4 + 2) << 16) + (s.charCodeAt(i * 4 + 3) << 24);
     } // note running off the end of the string generates nulls since bitwise operators treat NaN as 0
@@ -218,16 +218,16 @@ class Tea {
     const l = new BigUint64Array(Math.ceil(s.length / 8));
     const u8 = new Uint8Array(8)
     for (let i = 0; i < l.length; i++) {
-      // note little-endian encoding - endianness is irrelevant as long as it matches longsToStr()
-      u8[0] = s.charCodeAt(i * 8)
-      u8[0] =s.charCodeAt(i * 8 + 1) << 8
-      u8[0] =s.charCodeAt(i * 8 + 2) << 16
-      u8[0] =s.charCodeAt(i * 8 + 3) << 24
-      u8[0] =s.charCodeAt(i * 8 + 4) << 32
-      u8[0] =s.charCodeAt(i * 8 + 5) << 40
-      u8[0] =s.charCodeAt(i * 8 + 6) << 48
-      u8[0] =s.charCodeAt(i * 8 + 7) << 56
-      l[i] = BigInt('0x'+u8.join(""));
+      // note little-endian encoding - endianness is irrelevant as long as it matches uint32ToStr()
+      u8[0] = s.charCodeAt(i * 8).toString(16);
+      u8[1] = s.charCodeAt(i * 8 + 1).toString(16);
+      u8[2] = s.charCodeAt(i * 8 + 2).toString(16);
+      u8[3] = s.charCodeAt(i * 8 + 3).toString(16);
+      u8[4] = s.charCodeAt(i * 8 + 4).toString(16);
+      u8[5] = s.charCodeAt(i * 8 + 5).toString(16);
+      u8[6] = s.charCodeAt(i * 8 + 6).toString(16);
+      u8[7] = s.charCodeAt(i * 8 + 7).toString(16);
+      l[i] = BigInt('0x' + u8.join(""));
     } // note running off the end of the string generates nulls since bitwise operators treat NaN as 0
     return l;
   }
@@ -236,28 +236,19 @@ class Tea {
    * Converts array of longs to string.
    * @private
    */
-  static longsToStr(l) {
+  static uint32ToStr(l) {
     let str = '';
-    for (let i = 0; i < l.length; i++) {
-      str += String.fromCharCode(l[i] & 0xff, l[i] >>> 8 & 0xff, l[i] >>> 16 & 0xff, l[i] >>> 24 & 0xff);
-    }
+    for (let i = 0; i < l.length; i++) str += String.fromCharCode(l[i] & 0xff, l[i] >>> 8 & 0xff, l[i] >>> 16 & 0xff, l[i] >>> 24 & 0xff);
     return str;
   }
-
 
   static uint64ToStr(l) {
     let str = '';
     for (let i = 0; i < l.length; i++) {
-      //str += String.fromCharCode(l[i] & 0xff, l[i] >>> 8 & 0xff, l[i] >>> 16 & 0xff, l[i] >>> 24 & 0xff,
-      //  l[i] >>> 32 & 0xff, l[i] >>> 40 & 0xff, l[i] >>> 48 & 0xff, l[i] >>> 56 & 0xff);
-      const hex = BigInt(l[i]).toString(16);
+      const hex = l[i].toString(16);
+      if (hex.length % 2) hex = '0' + hex;
       const len = hex.length / 2
-      let j = 0, k = 0
-      while (j < len) {
-        str += parseInt(hex.slice(k, k + 2, 16))
-        j += 1;
-        k += 2;
-      }
+      for (let j = 0; j < len; j++)str += String.fromCharCode(parseInt(hex.slice(2 * j, 2 * j + 2, 16), 16))
     }
     return str;
   }
