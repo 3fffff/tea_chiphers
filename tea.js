@@ -194,6 +194,18 @@ class Tea {
     v[0] = x, v[1] = y;
     return v;
   }
+
+ static decryptSPEC(v, k) {
+    var x = v, y = k;
+    for (var i = 22 - 1; i >= 0; i--) {
+        y = x ^ y;
+        y = (y << 14 | y >>> 2) & 65535;
+        x = (x ^ key[i]) - y & 65535;
+        x = (x << 7 | x >>> 9) & 65535;
+    }
+    v[0] = x, v[1] = y;
+   return v
+}
   /**
    * Converts string to array of uint32 (each containing 4 chars).
    * @private
