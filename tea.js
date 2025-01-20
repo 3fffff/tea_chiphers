@@ -1,4 +1,4 @@
-class Tea {
+export class Tea {
   /**
    * Encrypts text using Corrected Block TEA (xxtea) algorithm.
    *
@@ -306,5 +306,3 @@ class Tea {
   }
 
 }
-
-export default Tea;
